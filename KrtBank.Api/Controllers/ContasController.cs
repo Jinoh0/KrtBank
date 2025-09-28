@@ -1,6 +1,5 @@
 using KrtBank.Application.DTOs;
 using KrtBank.Application.Interfaces;
-using KrtBank.Application.Utils;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KrtBank.Api.Controllers;
@@ -87,9 +86,6 @@ public class ContasController : ControllerBase
                     timestamp = DateTime.UtcNow
                 });
             }
-
-            dto.Cpf = CpfNormalizer.Normalize(dto.Cpf);
-            _logger.LogInformation("API: CPF normalized to: {Cpf}", dto.Cpf);
 
             var conta = await _contaService.CriarAsync(dto);
             _logger.LogInformation("API: Account created successfully: {Id} - {NomeTitular}", conta.Id, conta.NomeTitular);

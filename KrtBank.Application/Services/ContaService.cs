@@ -1,5 +1,6 @@
 using KrtBank.Application.DTOs;
 using KrtBank.Application.Interfaces;
+using KrtBank.Application.Utils;
 using KrtBank.Domain.Entities;
 using KrtBank.Domain.Interfaces;
 using KrtBank.Domain.ValueObjects;
@@ -11,8 +12,8 @@ public class ContaService : IContaService
     private readonly IContaRepository _contaRepository;
     private readonly ICacheService _cacheService;
     private readonly INotificationService _notificationService;
-    private const string CACHE_KEY_PREFIX = "conta:";
-    private const string CACHE_KEY_ALL = "contas:todas";
+    private const string CACHE_KEY_CONTAS = "contasCache";
+    private const string CACHE_KEY_CONTAS_ATUALIZADAS = "contasCacheAtualizadas";
 
     public ContaService(
         IContaRepository contaRepository,
@@ -26,39 +27,54 @@ public class ContaService : IContaService
 
     public async Task<ContaDto?> ObterPorIdAsync(Guid id)
     {
-        var cacheKey = $"{CACHE_KEY_PREFIX}{id}";
-        var contaCache = await _cacheService.ObterAsync<ContaDto>(cacheKey);
-        
-        if (contaCache != null)
-            return contaCache;
+        var listaCache = await _cacheService.ObterAsync<List<ContaDto>>(CACHE_KEY_CONTAS);
+        if (listaCache != null)
+        {
+            var contaCache = listaCache.FirstOrDefault(c => c.Id == id);
+            if (contaCache != null)
+                return contaCache;
+        }
 
         var conta = await _contaRepository.ObterPorIdAsync(id);
         if (conta == null)
             return null;
 
         var contaDto = MapearParaDto(conta);
-        await _cacheService.DefinirAsync(cacheKey, contaDto, TimeSpan.FromHours(3));
         
+        if (listaCache != null)
+        {
+            listaCache.Add(contaDto);
+            await _cacheService.AtualizarConteudoAsync(CACHE_KEY_CONTAS, listaCache);
+        }
+        else
+        {
+            await _cacheService.DefinirAsync(CACHE_KEY_CONTAS, new List<ContaDto> { contaDto }, TimeSpan.FromHours(3));
+        }
+
         return contaDto;
     }
 
     public async Task<IEnumerable<ContaDto>> ObterTodasAsync()
     {
-        var contasCache = await _cacheService.ObterAsync<IEnumerable<ContaDto>>(CACHE_KEY_ALL);
+        var isComplete = await _cacheService.ObterAsync<string>(CACHE_KEY_CONTAS_ATUALIZADAS);
+        var contasCache = await _cacheService.ObterAsync<List<ContaDto>>(CACHE_KEY_CONTAS);
         
-        if (contasCache != null)
+        if (isComplete == "true" && contasCache != null)
             return contasCache;
 
         var contas = await _contaRepository.ObterTodosAsync();
-        var contasDto = contas.Select(MapearParaDto);
+        var contasDto = contas.Select(MapearParaDto).ToList();
         
-        await _cacheService.DefinirAsync(CACHE_KEY_ALL, contasDto.ToList(), TimeSpan.FromHours(3));
+        await _cacheService.DefinirAsync(CACHE_KEY_CONTAS, contasDto, TimeSpan.FromHours(3));
+        
+        await _cacheService.DefinirAsync(CACHE_KEY_CONTAS_ATUALIZADAS, "true", TimeSpan.FromMinutes(165));
         
         return contasDto;
     }
 
     public async Task<ContaDto> CriarAsync(CriarContaDto dto)
     {
+        dto.Cpf = CpfNormalizer.Normalize(dto.Cpf);
         var cpf = new Cpf(dto.Cpf);
         
         if (await _contaRepository.ExisteCpfAsync(cpf))
@@ -67,9 +83,23 @@ public class ContaService : IContaService
         var conta = new Conta(dto.NomeTitular, cpf);
         await _contaRepository.AdicionarAsync(conta);
 
+        var contaDto = MapearParaDto(conta);
+        
+        var listaExistente = await _cacheService.ObterAsync<List<ContaDto>>(CACHE_KEY_CONTAS);
+        if (listaExistente != null)
+        {
+            listaExistente.Add(contaDto);
+            await _cacheService.AtualizarConteudoAsync(CACHE_KEY_CONTAS, listaExistente);
+        }
+        else
+        {
+            await _cacheService.DefinirAsync(CACHE_KEY_CONTAS, new List<ContaDto> { contaDto }, TimeSpan.FromHours(3));
+        }
+        
+        
         await _notificationService.NotificarContaCriadaAsync(conta.Id, conta.NomeTitular, conta.Cpf.Valor);
 
-        return MapearParaDto(conta);
+        return contaDto;
     }
 
     public async Task<ContaDto> AtualizarAsync(Guid id, AtualizarContaDto dto)
@@ -83,7 +113,16 @@ public class ContaService : IContaService
 
         var contaDto = MapearParaDto(conta);
         
-        await _cacheService.AtualizarItemNaListaAsync(CACHE_KEY_ALL, id, contaDto, c => c.Id);
+        var listaExistente = await _cacheService.ObterAsync<List<ContaDto>>(CACHE_KEY_CONTAS);
+        if (listaExistente != null)
+        {
+            await _cacheService.AtualizarItemNaListaAsync(CACHE_KEY_CONTAS, id, contaDto, c => c.Id);
+        }
+        else
+        {
+            await _cacheService.DefinirAsync(CACHE_KEY_CONTAS, new List<ContaDto> { contaDto }, TimeSpan.FromHours(3));
+        }
+        
         
         await _notificationService.NotificarContaAtualizadaAsync(conta.Id, conta.NomeTitular, conta.Cpf.Valor, conta.Status.ToString());
 
@@ -98,8 +137,13 @@ public class ContaService : IContaService
 
         await _contaRepository.RemoverAsync(id);
 
-        await _cacheService.RemoverAsync($"{CACHE_KEY_PREFIX}{id}");
-        await _cacheService.RemoverPorPadraoAsync(CACHE_KEY_ALL);
+        var listaExistente = await _cacheService.ObterAsync<List<ContaDto>>(CACHE_KEY_CONTAS);
+        if (listaExistente != null)
+        {
+            listaExistente.RemoveAll(c => c.Id == id);
+            await _cacheService.AtualizarConteudoAsync(CACHE_KEY_CONTAS, listaExistente);
+        }        
+        
         await _notificationService.NotificarContaRemovidaAsync(id);
 
         return true;
@@ -116,7 +160,16 @@ public class ContaService : IContaService
 
         var contaDto = MapearParaDto(conta);
         
-        await _cacheService.AtualizarItemNaListaAsync(CACHE_KEY_ALL, id, contaDto, c => c.Id);
+        var listaExistente = await _cacheService.ObterAsync<List<ContaDto>>(CACHE_KEY_CONTAS);
+        if (listaExistente != null)
+        {
+            await _cacheService.AtualizarItemNaListaAsync(CACHE_KEY_CONTAS, id, contaDto, c => c.Id);
+        }
+        else
+        {
+            await _cacheService.DefinirAsync(CACHE_KEY_CONTAS, new List<ContaDto> { contaDto }, TimeSpan.FromHours(3));
+        }
+        
         
         await _notificationService.NotificarContaAtualizadaAsync(conta.Id, conta.NomeTitular, conta.Cpf.Valor, conta.Status.ToString());
 
@@ -134,7 +187,16 @@ public class ContaService : IContaService
 
         var contaDto = MapearParaDto(conta);
         
-        await _cacheService.AtualizarItemNaListaAsync(CACHE_KEY_ALL, id, contaDto, c => c.Id);
+        var listaExistente = await _cacheService.ObterAsync<List<ContaDto>>(CACHE_KEY_CONTAS);
+        if (listaExistente != null)
+        {
+            await _cacheService.AtualizarItemNaListaAsync(CACHE_KEY_CONTAS, id, contaDto, c => c.Id);
+        }
+        else
+        {
+            await _cacheService.DefinirAsync(CACHE_KEY_CONTAS, new List<ContaDto> { contaDto }, TimeSpan.FromHours(3));
+        }
+        
         
         await _notificationService.NotificarContaAtualizadaAsync(conta.Id, conta.NomeTitular, conta.Cpf.Valor, conta.Status.ToString());
 

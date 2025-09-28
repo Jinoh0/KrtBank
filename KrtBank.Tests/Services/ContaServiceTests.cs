@@ -97,8 +97,8 @@ public class ContaServiceTests
             Status = Domain.Enums.StatusConta.Ativa
         };
 
-        _cacheServiceMock.Setup(x => x.ObterAsync<ContaDto>(It.IsAny<string>()))
-            .ReturnsAsync(contaDto);
+        _cacheServiceMock.Setup(x => x.ObterAsync<List<ContaDto>>("contasCache"))
+            .ReturnsAsync(new List<ContaDto> { contaDto });
 
         // Act
         var resultado = await _contaService.ObterPorIdAsync(id);
@@ -108,7 +108,7 @@ public class ContaServiceTests
         Assert.Equal(contaDto.Id, resultado.Id);
         Assert.Equal(contaDto.NomeTitular, resultado.NomeTitular);
         
-        _cacheServiceMock.Verify(x => x.ObterAsync<ContaDto>(It.IsAny<string>()), Times.Once);
+        _cacheServiceMock.Verify(x => x.ObterAsync<List<ContaDto>>("contasCache"), Times.Once);
         _contaRepositoryMock.Verify(x => x.ObterPorIdAsync(It.IsAny<Guid>()), Times.Never);
     }
 
@@ -119,8 +119,8 @@ public class ContaServiceTests
         var id = Guid.NewGuid();
         var conta = new Conta("João Silva", new Cpf("111.444.777-35"));
 
-        _cacheServiceMock.Setup(x => x.ObterAsync<ContaDto>(It.IsAny<string>()))
-            .ReturnsAsync((ContaDto?)null);
+        _cacheServiceMock.Setup(x => x.ObterAsync<List<ContaDto>>("contasCache"))
+            .ReturnsAsync((List<ContaDto>?)null);
 
         _contaRepositoryMock.Setup(x => x.ObterPorIdAsync(id))
             .ReturnsAsync(conta);
@@ -133,9 +133,9 @@ public class ContaServiceTests
         Assert.Equal(conta.Id, resultado.Id);
         Assert.Equal(conta.NomeTitular, resultado.NomeTitular);
         
-        _cacheServiceMock.Verify(x => x.ObterAsync<ContaDto>(It.IsAny<string>()), Times.Once);
+        _cacheServiceMock.Verify(x => x.ObterAsync<List<ContaDto>>("contasCache"), Times.Once);
         _contaRepositoryMock.Verify(x => x.ObterPorIdAsync(id), Times.Once);
-        _cacheServiceMock.Verify(x => x.DefinirAsync(It.IsAny<string>(), It.IsAny<ContaDto>(), It.IsAny<TimeSpan>()), Times.Once);
+        _cacheServiceMock.Verify(x => x.DefinirAsync("contasCache", It.IsAny<List<ContaDto>>(), It.IsAny<TimeSpan>()), Times.Once);
     }
 
     [Fact]
@@ -148,6 +148,9 @@ public class ContaServiceTests
 
         _contaRepositoryMock.Setup(x => x.ObterPorIdAsync(id))
             .ReturnsAsync(conta);
+
+        _cacheServiceMock.Setup(x => x.ObterAsync<List<ContaDto>>("contasCache"))
+            .ReturnsAsync(new List<ContaDto>());
 
         // Act
         var resultado = await _contaService.AtualizarAsync(id, dto);
@@ -197,6 +200,9 @@ public class ContaServiceTests
         _contaRepositoryMock.Setup(x => x.ObterPorIdAsync(id))
             .ReturnsAsync(conta);
 
+        _cacheServiceMock.Setup(x => x.ObterAsync<List<ContaDto>>("contasCache"))
+            .ReturnsAsync(new List<ContaDto>());
+
         // Act
         var resultado = await _contaService.RemoverAsync(id);
 
@@ -204,7 +210,8 @@ public class ContaServiceTests
         Assert.True(resultado);
         
         _contaRepositoryMock.Verify(x => x.RemoverAsync(id), Times.Once);
-        _cacheServiceMock.Verify(x => x.RemoverAsync(It.IsAny<string>()), Times.Once);
+        _cacheServiceMock.Verify(x => x.ObterAsync<List<ContaDto>>("contasCache"), Times.Once);
+        _cacheServiceMock.Verify(x => x.AtualizarConteudoAsync("contasCache", It.IsAny<List<ContaDto>>()), Times.Once);
         _notificationServiceMock.Verify(x => x.NotificarContaRemovidaAsync(id), Times.Once);
     }
 

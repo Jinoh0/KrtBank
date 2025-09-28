@@ -48,6 +48,20 @@ public class CacheService : ICacheService
         await Task.CompletedTask;
     }
 
+    public async Task AtualizarConteudoAsync<T>(string chave, T valor) where T : class
+    {
+        if (_memoryCache.TryGetValue(chave, out var existingValue))
+        {
+            _memoryCache.Set(chave, valor);
+            _logger.LogInformation("CACHE UPDATE CONTENT for key: {Chave} (preserving expiration)", chave);
+        }
+        else
+        {
+            _logger.LogInformation("CACHE UPDATE CONTENT: Key {Chave} not found, skipping update", chave);
+        }
+        await Task.CompletedTask;
+    }
+
     public async Task RemoverAsync(string chave)
     {
         _memoryCache.Remove(chave);
@@ -126,5 +140,6 @@ public class CacheService : ICacheService
         
         await Task.CompletedTask;
     }
+
 }
 
