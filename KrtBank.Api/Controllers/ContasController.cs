@@ -1,5 +1,6 @@
 using KrtBank.Application.DTOs;
 using KrtBank.Application.Interfaces;
+using KrtBank.Application.Utils;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KrtBank.Api.Controllers;
@@ -17,9 +18,6 @@ public class ContasController : ControllerBase
         _logger = logger;
     }
 
-    /// <summary>
-    /// Obter todas as contas
-    /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ContaDto>>> ObterTodas()
     {
@@ -41,9 +39,6 @@ public class ContasController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Obter conta por ID
-    /// </summary>
     [HttpGet("{id}")]
     public async Task<ActionResult<ContaDto>> ObterPorId(Guid id)
     {
@@ -76,9 +71,6 @@ public class ContasController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Criar nova conta
-    /// </summary>
     [HttpPost]
     public async Task<ActionResult<ContaDto>> Criar([FromBody] CriarContaDto dto)
     {
@@ -96,6 +88,9 @@ public class ContasController : ControllerBase
                 });
             }
 
+            dto.Cpf = CpfNormalizer.Normalize(dto.Cpf);
+            _logger.LogInformation("API: CPF normalized to: {Cpf}", dto.Cpf);
+
             var conta = await _contaService.CriarAsync(dto);
             _logger.LogInformation("API: Account created successfully: {Id} - {NomeTitular}", conta.Id, conta.NomeTitular);
             return CreatedAtAction(nameof(ObterPorId), new { id = conta.Id }, conta);
@@ -112,9 +107,9 @@ public class ContasController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning("API: Invalid data for account creation: {Cpf} - {Message}", dto.Cpf, ex.Message);
+            _logger.LogWarning("API: Invalid CPF format for account creation: {Cpf} - {Message}", dto.Cpf, ex.Message);
             return BadRequest(new { 
-                error = "Dados inválidos", 
+                error = "Formato de CPF inválido", 
                 message = ex.Message,
                 cpf = dto.Cpf,
                 timestamp = DateTime.UtcNow
@@ -132,9 +127,6 @@ public class ContasController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Atualizar conta
-    /// </summary>
     [HttpPut("{id}")]
     public async Task<ActionResult<ContaDto>> Atualizar(Guid id, [FromBody] AtualizarContaDto dto)
     {
@@ -163,9 +155,6 @@ public class ContasController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Remover conta
-    /// </summary>
     [HttpDelete("{id}")]
     public async Task<ActionResult> Remover(Guid id)
     {
@@ -184,9 +173,6 @@ public class ContasController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Ativar conta
-    /// </summary>
     [HttpPatch("{id}/ativar")]
     public async Task<ActionResult<ContaDto>> Ativar(Guid id)
     {
@@ -207,9 +193,6 @@ public class ContasController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Inativar conta
-    /// </summary>
     [HttpPatch("{id}/inativar")]
     public async Task<ActionResult<ContaDto>> Inativar(Guid id)
     {
