@@ -1,0 +1,45 @@
+### KrtBank API - Testes HTTP
+
+@baseUrl = https://localhost:7000
+@apiVersion = v1
+
+### 1. Obter todas as contas
+GET {{baseUrl}}/api/contas
+Accept: application/json
+
+### 2. Obter conta por ID
+GET {{baseUrl}}/api/contas/{{contaId}}
+Accept: application/json
+
+### 3. Criar nova conta
+POST {{baseUrl}}/api/contas
+Content-Type: application/json
+
+{
+  "nomeTitular": "João Silva Santos",
+  "cpf": "123.456.789-00"
+}
+
+### 4. Atualizar conta
+PUT {{baseUrl}}/api/contas/{{contaId}}
+Content-Type: application/json
+
+{
+  "nomeTitular": "João Silva Santos Atualizado"
+}
+
+### 5. Ativar conta
+PATCH {{baseUrl}}/api/contas/{{contaId}}/ativar
+Accept: application/json
+
+### 6. Inativar conta
+PATCH {{baseUrl}}/api/contas/{{contaId}}/inativar
+Accept: application/json
+
+### 7. Remover conta
+DELETE {{baseUrl}}/api/contas/{{contaId}}
+Accept: application/json
+
+### 8. Swagger UI
+GET {{baseUrl}}/swagger
+Accept: text/html
