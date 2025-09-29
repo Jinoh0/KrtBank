@@ -214,16 +214,6 @@ open test-api.html
 - **Mocking**: Dependências externas mockadas
 - **Dados de Teste**: Cenários de teste realistas
 
-## 🤝 Contribuindo
-
-1. Faça um fork do repositório
-2. Crie uma branch de feature (`git checkout -b feature/funcionalidade-incrivel`)
-3. Commit suas mudanças (`git commit -m 'Adiciona funcionalidade incrível'`)
-4. Push para a branch (`git push origin feature/funcionalidade-incrivel`)
-5. Abra um Pull Request
-
 ## 👨‍💻 Autor
-
-**Seu Nome**
 - GitHub: [@jinoh0](https://github.com/jinoh0)
 - LinkedIn: https://linkedin.com/in/jinohong

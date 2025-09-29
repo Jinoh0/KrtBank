@@ -193,7 +193,7 @@ dotnet restore
 ### CI/CD
 - **GitHub Actions**: Build, test, security scan
 - **GitHub Packages**: Pacotes NuGet
-- **SonarQube**: Análise de qualidade
+- **Codecov**: Análise de cobertura de código
 
 ## 🔧 Configurações
 
@@ -201,20 +201,15 @@ dotnet restore
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=KrtBankDb;Trusted_Connection=true;MultipleActiveResultSets=true"
+    "DefaultConnection": "Data Source=KrtBank_Dev.db"
   }
 }
 ```
 
-### Cache Configuration
-```json
-{
-  "Cache": {
-    "DefaultExpiration": "01:00:00",
-    "SlidingExpiration": "00:30:00"
-  }
-}
-```
+### Database
+- **SQLite**: Banco de dados local para desenvolvimento
+- **Arquivo**: `KrtBank_Dev.db` na pasta do projeto
+- **Entity Framework**: Code First com migrations automáticas
 
 ## 📚 Padrões e Boas Práticas
 
@@ -243,8 +238,8 @@ dotnet restore
 
 #### 1. Erro de Conexão com Banco
 ```
-Solução: Verificar se SQL Server LocalDB está instalado
-Comando: sqllocaldb info
+Solução: Verificar se o arquivo KrtBank_Dev.db existe
+Comando: ls KrtBank_Dev.db (Linux/Mac) ou dir KrtBank_Dev.db (Windows)
 ```
 
 #### 2. Cache Não Funcionando
@@ -264,24 +259,6 @@ Configuração: Verificar injeção de dependência
 - `Cache hit`: Dados encontrados no cache
 - `Cache miss`: Dados buscados no banco
 - `Notificação enviada`: Confirmação de notificação
-
-## 🔄 Roadmap
-
-### Próximas Funcionalidades
-- [ ] Cache distribuído com Redis
-- [ ] Autenticação e autorização
-- [ ] Rate limiting
-- [ ] Métricas com Prometheus
-- [ ] Health checks
-- [ ] Circuit breaker pattern
-
-### Melhorias de Performance
-- [ ] Paginação nas consultas
-- [ ] Índices otimizados no banco
-- [ ] Compressão de responses
-- [ ] CDN para assets estáticos
-
-## 📞 Suporte
 
 Para dúvidas ou problemas:
 1. Verificar logs da aplicação
