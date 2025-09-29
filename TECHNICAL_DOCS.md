@@ -84,11 +84,18 @@ A KrtBank API é uma solução completa para gerenciamento de contas de clientes
 
 ### Cache Strategy
 ```csharp
-// Contas individuais: 24 horas
-await _cacheService.DefinirAsync($"conta:{id}", contaDto, TimeSpan.FromHours(24));
+// Sistema de cache unificado
+private const string CACHE_KEY_CONTAS = "contasCache";
+private const string CACHE_KEY_CONTAS_ATUALIZADAS = "contasCacheAtualizadas";
 
-// Lista de contas: 1 hora
-await _cacheService.DefinirAsync("contas:todas", contasDto, TimeSpan.FromHours(1));
+// Cache principal: 3 horas
+await _cacheService.DefinirAsync(CACHE_KEY_CONTAS, contasDto, TimeSpan.FromHours(3));
+
+// Flag de completude: 2:45 horas (15min antes de expirar)
+await _cacheService.DefinirAsync(CACHE_KEY_CONTAS_ATUALIZADAS, "true", TimeSpan.FromMinutes(165));
+
+// Atualização inteligente (preserva expiração)
+await _cacheService.AtualizarConteudoAsync(CACHE_KEY_CONTAS, listaAtualizada);
 ```
 
 ### Sistema de Notificações
@@ -107,14 +114,16 @@ await _cacheService.DefinirAsync("contas:todas", contasDto, TimeSpan.FromHours(1
 - Performance degradada
 
 ### Solução Implementada
-1. **Cache Inteligente**
-   - Diferentes TTLs por tipo de consulta
-   - Invalidação automática em operações de escrita
-   - Sliding expiration para dados frequentes
+1. **Cache Unificado Inteligente**
+   - Cache único (`contasCache`) para todas as operações
+   - Flag de completude (`contasCacheAtualizadas`) com TTL de 2:45h
+   - Cache principal com TTL de 3h (15min de buffer)
+   - Preservação de expiração em atualizações
 
 2. **Estratégias de Cache**
-   - **Read-Through**: Busca no cache primeiro, depois no banco
-   - **Write-Through**: Atualiza cache e banco simultaneamente
+   - **Cache-Aside**: Busca no cache primeiro, depois no banco
+   - **Atualização Inteligente**: Adiciona/atualiza/remove itens da lista
+   - **Flag de Completude**: Evita buscas desnecessárias no banco
    - **Cache-Aside**: Aplicação gerencia cache explicitamente
 
 3. **Métricas de Performance**

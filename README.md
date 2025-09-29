@@ -7,11 +7,11 @@ Uma API bancária profissional em .NET 8 para gerenciamento de contas de cliente
 Este projeto demonstra um sistema bancário completo para gerenciamento de contas de clientes com as seguintes funcionalidades:
 
 - **Gerenciamento de Contas**: Operações CRUD para contas de clientes
-- **Cache**: Cache em memória para otimização de performance
+- **Cache Inteligente**: Sistema de cache unificado com flag de completude
 - **Notificações**: Notificações automatizadas para departamentos do banco
-- **Validação**: Validação de CPF e aplicação de regras de negócio
+- **Validação**: Validação e normalização de CPF
 - **Clean Architecture**: Separação de responsabilidades entre camadas
-- **Testes Unitários**: Cobertura abrangente de testes com xUnit e Moq
+- **Testes Unitários**: 61 testes com cobertura abrangente (xUnit e Moq)
 
 ## 🏗️ Arquitetura
 
@@ -24,11 +24,13 @@ KrtBank/
 │   ├── ValueObjects/        # Objetos de valor (Cpf)
 │   ├── Enums/              # Enums de domínio (StatusConta)
 │   ├── Events/             # Eventos de domínio
+│   ├── Utils/              # Utilitários de domínio (CpfValidator)
 │   └── Interfaces/         # Interfaces de repositório
 ├── KrtBank.Application/     # Camada de Aplicação
 │   ├── DTOs/               # Objetos de Transferência de Dados
 │   ├── Interfaces/         # Interfaces de serviços
-│   └── Services/           # Serviços de lógica de negócio
+│   ├── Services/           # Serviços de lógica de negócio
+│   └── Utils/              # Utilitários de aplicação (CpfNormalizer)
 ├── KrtBank.Infrastructure/  # Camada de Infraestrutura
 │   ├── Data/               # Contexto do Entity Framework
 │   ├── Repositories/       # Implementações de acesso a dados
@@ -36,7 +38,8 @@ KrtBank/
 ├── KrtBank.Api/            # Camada de Apresentação
 │   └── Controllers/        # Controladores da API REST
 └── KrtBank.Tests/          # Camada de Testes
-    └── Services/           # Testes unitários
+    ├── Services/           # Testes unitários de serviços
+    └── Utils/              # Testes de utilitários
 ```
 
 ## 🚀 Funcionalidades
@@ -50,18 +53,21 @@ KrtBank/
   - Ativar/Desativar contas
 
 ### Funcionalidades Técnicas
-- **Estratégia de Cache**
-  - Cache em memória para contas individuais (TTL 24h)
-  - Cache de listas para performance (TTL 1h)
-  - Invalidação automática de cache em atualizações
+- **Sistema de Cache Unificado**
+  - Cache único (`contasCache`) para todas as operações
+  - Flag de completude (`contasCacheAtualizadas`) com TTL de 2:45h
+  - Cache principal com TTL de 3h (15min de buffer)
+  - Atualização inteligente: adiciona/atualiza/remove itens da lista
+  - Preservação de expiração em atualizações
 
 - **Sistema de Notificações**
   - Notificações automatizadas para Prevenção à Fraude
   - Notificações automatizadas para Departamento de Cartões
   - Notificações automatizadas para Departamento de Crédito
 
-- **Validação de Dados**
-  - Validação de CPF com regras de negócio
+- **Validação e Normalização de CPF**
+  - Validação completa de CPF com dígitos verificadores
+  - Normalização automática de formatos (remove formatação)
   - Prevenção de contas duplicadas
   - Validação de entrada e tratamento de erros
 
@@ -73,6 +79,7 @@ KrtBank/
 - **xUnit** - Framework de testes unitários
 - **Moq** - Framework de mocking
 - **Swagger/OpenAPI** - Documentação da API
+- **GitHub Actions** - CI/CD Pipeline
 
 ## 📋 Pré-requisitos
 
@@ -84,7 +91,7 @@ KrtBank/
 
 ### 1. Clonar o Repositório
 ```bash
-git clone https://github.com/seuusuario/KrtBank.git
+git clone https://github.com/jinoh0/KrtBank.git
 cd KrtBank
 ```
 
@@ -98,12 +105,17 @@ dotnet restore
 dotnet build
 ```
 
-### 4. Executar a Aplicação
+### 4. Executar Testes
+```bash
+dotnet test
+```
+
+### 5. Executar a Aplicação
 ```bash
 dotnet run --project KrtBank.Api
 ```
 
-### 5. Acessar a API
+### 6. Acessar a API
 - **Swagger UI**: http://localhost:5226/swagger
 - **URL Base da API**: http://localhost:5226/api
 
@@ -114,11 +126,17 @@ dotnet run --project KrtBank.Api
 dotnet test
 ```
 
+### Cobertura de Testes
+- **8 testes** para ContaService
+- **Testes de utilitários** (CpfValidator, CpfNormalizer)
+- **Cobertura abrangente** de cenários de sucesso e erro
+
 ### Testar Endpoints da API
 Use os scripts de teste fornecidos:
 ```bash
 # PowerShell
-.\test-professional-logging.ps1
+.\test-simple.ps1
+.\test-fixes.ps1
 
 # Ou use a interface HTML de teste
 open test-api.html
@@ -150,6 +168,7 @@ open test-api.html
 - **Objetos de Valor**: Cpf com validação
 - **Eventos de Domínio**: ContaCriadaEvent, ContaAtualizadaEvent, ContaRemovidaEvent
 - **Repositórios**: Abstração de acesso a dados
+- **Utilitários de Domínio**: CpfValidator para validação
 
 ### Clean Architecture
 - **Regra de Dependência**: Dependências apontam para dentro
@@ -158,30 +177,39 @@ open test-api.html
 
 ## 📈 Funcionalidades de Performance
 
-- **Cache**: Reduz consultas ao banco em 80%
+- **Cache Unificado**: Sistema inteligente de cache com flag de completude
 - **Async/Await**: Operações não bloqueantes
 - **Entity Framework**: Consultas otimizadas
 - **Gerenciamento de Memória**: Ciclo de vida eficiente de objetos
+- **Preservação de TTL**: Atualizações não resetam expiração do cache
 
 ## 🔒 Considerações de Segurança
 
 - **Validação de Entrada**: Todas as entradas são validadas
 - **Prevenção de SQL Injection**: Consultas parametrizadas do Entity Framework
 - **Tratamento de Erros**: Mensagens de erro seguras
-- **Sanitização de Dados**: Formatação e validação de CPF
+- **Sanitização de CPF**: Normalização e validação automática
 
+## 🚀 CI/CD Pipeline
+
+### GitHub Actions
+- **Build**: Compilação automática em .NET 8
+- **Testes**: Execução de todos os 61 testes
+- **Cobertura**: Relatório de cobertura de código
+- **Segurança**: Scan de vulnerabilidades em dependências
+- **Triggers**: Push para main/develop e Pull Requests
 
 ## 📝 Diretrizes de Desenvolvimento
 
 ### Padrões de Código
-- **Recursos C# 12** e sintaxe
+- **Recursos C# 12** e sintaxe moderna
 - **Async/await** para todas as operações de I/O
 - **Tipos de referência nullable** habilitados
 - **Logging profissional** (sem emojis em produção)
 - **Tratamento abrangente de erros**
+- **Código limpo** sem comentários desnecessários
 
 ### Estratégia de Testes
-- **Testes Unitários**: Cobertura de 90%+
 - **Testes de Integração**: Teste de endpoints da API
 - **Mocking**: Dependências externas mockadas
 - **Dados de Teste**: Cenários de teste realistas
@@ -194,23 +222,8 @@ open test-api.html
 4. Push para a branch (`git push origin feature/funcionalidade-incrivel`)
 5. Abra um Pull Request
 
-## 📄 Licença
-
-Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
-
 ## 👨‍💻 Autor
 
 **Seu Nome**
-- GitHub: [@seuusuario](https://github.com/seuusuario)
-- LinkedIn: [Seu LinkedIn](https://linkedin.com/in/seuperfil)
-
-## 🙏 Agradecimentos
-
-- Equipe .NET pelo excelente framework
-- Equipe Entity Framework pelo ORM
-- Princípios de Clean Architecture por Uncle Bob
-- Comunidade Domain-Driven Design
-
----
-
-**Construído com ❤️ para a indústria bancária**
+- GitHub: [@jinoh0](https://github.com/jinoh0)
+- LinkedIn: https://linkedin.com/in/jinohong
